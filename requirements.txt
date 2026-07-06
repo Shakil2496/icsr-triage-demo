@@ -1,8 +1,8 @@
 streamlit
 scikit-learn==1.4.2
 xgboost==2.1.1
-numpy==1.24.3
-pandas==2.0.3
+numpy
+pandas
 joblib
 pyarrow
 matplotlib
