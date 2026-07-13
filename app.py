@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 ICSR Triage - decision-support demo (Streamlit app, multi-tab).
@@ -405,3 +406,4 @@ with tab_about:
  
 Model: clinical XGBoost, temporal validation, test AUROC {meta['test_auroc']:.3f},
 threshold {meta['threshold']:.2f}.
+    """)
