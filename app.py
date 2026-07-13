@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 ICSR Triage - decision-support demo (Streamlit app, multi-tab).
@@ -30,6 +29,15 @@ from xgboost import DMatrix
  
 from triage_common import (build_row_from_fields, featurize_report,
                            reliability_for)
+
+UNKNOWN_REPORTER = {"unk", "0", "", "unknown", "none"}
+
+
+def is_outside_reliability_boundary(qual):
+    """Reports with unknown reporter qualification sit outside the model's
+    reliability boundary: temporal-validation AUROC was 0.512 (95% CI
+    0.461-0.562), an interval spanning chance. The model declines to score them."""
+    return str(qual).strip().lower() in UNKNOWN_REPORTER
  
 MODEL_DIR = "demo_model"
 DATA_DIR = os.path.dirname(MODEL_DIR)
@@ -228,8 +236,9 @@ with tab_triage:
             n_conc = st.number_input("Concomitant drugs", 0, 40, 0)
             region = st.selectbox("Report origin", ["US", "non-US"], index=0)
             reporter = st.selectbox("Reporter",
-                                    ["1 (physician)", "2 (pharmacist)",
-                                     "3 (other HP)", "5 (consumer)"], index=3)
+                                     ["1 (physician)", "2 (pharmacist)",
+                                     "3 (other HP)", "5 (consumer)",
+                                     "unk (unknown / not stated)"], index=3)
         is_us = 1 if region == "US" else 0
         qual = reporter.split(" ")[0]
         if st.button("Triage this case", type="primary"):
@@ -275,7 +284,24 @@ with tab_triage:
                                show.to_csv(index=False).encode("utf-8"),
                                "triage_worklist.csv", "text/csv")
  
-    if row is not None:
+    if row is not None and is_outside_reliability_boundary(qual):
+        st.subheader("Not scoreable - routed to manual review")
+        st.error(
+            "**This case falls outside the model's reliability boundary and has "
+            "not been scored.**\n\n"
+            "Reporter qualification is unknown or not stated. In temporal "
+            "validation, discrimination for this group was **AUROC 0.512 "
+            "(95% CI 0.461-0.562)** - a confidence interval spanning chance. The "
+            "model cannot rank these reports better than random, so any probability "
+            "shown here would be a number without information.\n\n"
+            "No threshold adjustment repairs a non-discriminating model. Route this "
+            "case directly to unassisted human review.",
+            icon="\U0001f6d1")
+        st.caption("A triage tool that returns a confident-looking score for a case "
+                   "it cannot actually rank is more dangerous than one that declines "
+                   "to answer.")
+
+    elif row is not None:
         proba, top = score_and_explain(row)
         serious = proba >= thr
         left, right = st.columns([1, 1])
@@ -379,4 +405,3 @@ with tab_about:
  
 Model: clinical XGBoost, temporal validation, test AUROC {meta['test_auroc']:.3f},
 threshold {meta['threshold']:.2f}.
-    """)
